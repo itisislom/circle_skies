@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Circle Skies</title>
+    <title>Flappy Circle 2D</title>
     <style>
         body {
             margin: 0;
@@ -77,6 +77,11 @@
             cursor: pointer;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             transition: background-color 0.3s ease, transform 0.1s ease;
+            /* Улучшенное касание для мобильных */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            min-height: 44px; /* Минимальная высота для удобного касания */
         }
 
         #restart-button:hover {
@@ -461,18 +466,25 @@
 
         // --- Управление игрой ---
         function handleInput() {
-            if (!gameStarted && !gameOver) {
+            if (gameOver) {
+                // Если игра закончена, перезапускаем
+                initGame();
+                return;
+            }
+            
+            if (!gameStarted) {
+                // Начинаем игру
                 gameStarted = true;
                 gameOverlay.classList.add('hidden'); // Скрыть стартовый оверлей
                 lastPillarSpawnTime = Date.now(); // Сбросить таймер появления столбиков
                 bgMusic.play().catch(e => console.warn("Background music play failed:", e));
             }
+            
             if (gameStarted && !gameOver) {
+                // Прыжок во время игры
                 player.velocityY = player.jumpStrength; // Придаем импульс вверх
                 jumpSound.currentTime = 0; // Сброс звука, чтобы он мог проиграться снова быстро
                 jumpSound.play().catch(e => console.warn("Jump sound failed:", e));
-            } else if (gameOver) {
-                initGame(); // Перезапуск игры при клике/пробеле после окончания
             }
         }
 
@@ -530,12 +542,38 @@
             }
         });
 
+        // Обработчики касаний для мобильных устройств
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault(); // Предотвратить прокрутку и зум
             handleInput();
         });
 
-        restartButton.addEventListener('click', () => {
+        // Также добавляем обработчик касаний для всего документа (на случай касания вне canvas)
+        document.addEventListener('touchstart', (e) => {
+            // Проверяем, что касание не по кнопке рестарта
+            if (!restartButton.contains(e.target)) {
+                e.preventDefault();
+                handleInput();
+            }
+        });
+
+        // Обработчик клика мыши для canvas
+        canvas.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleInput();
+        });
+
+        // Обработчик для кнопки рестарта
+        restartButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Предотвратить всплытие события
+            initGame();
+        });
+
+        // Также добавляем обработчик касания для кнопки рестарта
+        restartButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             initGame();
         });
 
