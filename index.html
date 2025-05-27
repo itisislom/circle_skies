@@ -77,11 +77,6 @@
             cursor: pointer;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             transition: background-color 0.3s ease, transform 0.1s ease;
-            /* Улучшенное касание для мобильных */
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-            min-height: 44px; /* Минимальная высота для удобного касания */
         }
 
         #restart-button:hover {
@@ -164,14 +159,14 @@
             eyeColor: 'white',
             velocityY: 0,
             baseGravity: 0.5,
-            baseJumpStrength: -7.5, // Увеличил силу прыжка для Flappy Bird ощущения
+            baseJumpStrength: -7.5,
             x: 0, y: 0, radius: 0, gravity: 0, jumpStrength: 0 // Актуальные, масштабированные
         };
 
         // Параметры столбиков (базовые, будут масштабироваться)
         const pillarConfig = {
-            baseWidth: 70,
-            baseGap: 150, // Увеличенный просвет
+            baseWidth: 60, // Немного уменьшил ширину столбов
+            baseGap: 160, // Ещё немного увеличил просвет для комфорта
             baseSpeed: 3,
             baseSpawnInterval: 1700 // Интервал появления
         };
@@ -197,11 +192,9 @@
             const displayWidth = window.innerWidth;
             const displayHeight = window.innerHeight;
 
-            // Определяем, как лучше вписать игру: по ширине или по высоте
             const widthRatio = displayWidth / BASE_WIDTH;
             const heightRatio = displayHeight / BASE_HEIGHT;
 
-            // Выбираем меньший коэффициент, чтобы игра полностью поместилась
             currentScale = Math.min(widthRatio, heightRatio);
 
             canvas.width = BASE_WIDTH * currentScale;
@@ -238,6 +231,7 @@
 
         window.addEventListener('resize', fitCanvasToScreen);
 
+
         // --- Инициализация и сброс игры ---
         function initGame() {
             gameStarted = false;
@@ -245,8 +239,8 @@
             score = 0;
             player.y = player.baseY * currentScale; // Начальная позиция игрока
             player.velocityY = 0;
-            pillars.length = 0; // Очищаем массив столбиков
-            clouds.length = 0; // Очищаем массив облаков
+            pillars = []; // Очищаем массив столбиков
+            clouds = []; // Очищаем массив облаков
             currentScoreDisplay.textContent = 'Счет: 0';
 
             // Показываем стартовый оверлей
@@ -268,8 +262,7 @@
                     baseX: Math.random() * BASE_WIDTH,
                     baseY: Math.random() * (BASE_HEIGHT * 0.6) + 50,
                     baseRadius: Math.random() * (cloudConfig.baseRadiusMax - cloudConfig.baseRadiusMin) + cloudConfig.baseRadiusMin,
-                    alpha: Math.random() * 0.5 + 0.3,
-                    x: 0, y: 0, radius: 0 // Актуальные, масштабированные
+                    alpha: Math.random() * 0.5 + 0.3
                 });
             }
             fitCanvasToScreen(); // Обновить масштабы после инициализации элементов
@@ -385,31 +378,32 @@
         function updatePillars() {
             if (!gameStarted) return;
 
-            // Перебираем столбики в обратном порядке для безопасного удаления
-            for (let i = pillars.length - 1; i >= 0; i--) {
-                const pillar = pillars[i];
-                pillar.x -= pillarConfig.speed; // Используем масштабированную скорость
+            const newPillars = []; // Новый массив для столбиков, которые остаются
+            pillars.forEach(p => {
+                p.x -= pillarConfig.speed; // Используем масштабированную скорость
 
-                // Проверка на прохождение столбика и начисление очков
-                if (!pillar.passed && player.x > pillar.x + pillarConfig.width) {
-                    score++;
-                    currentScoreDisplay.textContent = `Счет: ${score}`;
-                    pillar.passed = true;
-                    scoreSound.currentTime = 0;
-                    scoreSound.play().catch(e => console.warn("Score sound failed:", e));
-                }
+                // Если столбик еще виден, добавляем его в новый массив
+                if (p.x + pillarConfig.width > 0) {
+                    newPillars.push(p);
 
-                // Удаляем столбики, вышедшие за пределы экрана
-                if (pillar.x + pillarConfig.width < 0) {
-                    pillars.splice(i, 1);
+                    // Проверка на прохождение столбика и начисление очков
+                    // Очко начисляется, когда игрок полностью пересек правую границу столба
+                    if (!p.passed && player.x > p.x + pillarConfig.width) {
+                        score++;
+                        currentScoreDisplay.textContent = `Счет: ${score}`;
+                        p.passed = true;
+                        scoreSound.currentTime = 0;
+                        scoreSound.play().catch(e => console.warn("Score sound failed:", e));
+                    }
                 }
-            }
+            });
+            pillars = newPillars; // Заменяем старый массив новым
 
             // Создаем новые столбики
             const currentTime = Date.now();
             // Генерируем новый столб, если прошло достаточно времени с момента появления последнего
             // или если столбов еще нет (для первого)
-            if (gameStarted && (pillars.length === 0 || currentTime - lastPillarSpawnTime > pillarConfig.baseSpawnInterval)) {
+            if (gameStarted && (pillars.length === 0 || canvas.width - pillars[pillars.length - 1].x > pillarConfig.baseWidth * 2.5)) { // Условие для генерации нового столба
                 const minHeight = 100 * currentScale;
                 const maxHeight = canvas.height - (grassConfig.baseHeight * currentScale) - pillarConfig.gap - 100 * currentScale;
                 const height = Math.random() * (maxHeight - minHeight) + minHeight;
@@ -417,13 +411,14 @@
                 pillars.push({
                     baseX: BASE_WIDTH, // Сохраняем базовую позицию для масштабирования
                     baseHeight: height / currentScale, // Сохраняем базовую высоту
-                    x: canvas.width, // Текущая позиция на экране
-                    height: height,  // Текущая высота
+                    x: canvas.width, // Текущая позиция на экране (для отрисовки)
+                    height: height,  // Текущая высота (для отрисовки и столкновений)
                     passed: false
                 });
-                lastPillarSpawnTime = currentTime;
+                lastPillarSpawnTime = currentTime; // Обновляем время появления последнего столба
             }
         }
+
 
         function updateClouds() {
             clouds.forEach(cloud => {
@@ -467,18 +462,18 @@
         // --- Управление игрой ---
         function handleInput() {
             if (!gameStarted && !gameOver) {
-                // Начинаем игру с главного меню
+                // Только один раз, при первом взаимодействии, запускаем игру
                 gameStarted = true;
                 gameOverlay.classList.add('hidden'); // Скрыть стартовый оверлей
                 lastPillarSpawnTime = Date.now(); // Сбросить таймер появления столбиков
                 bgMusic.play().catch(e => console.warn("Background music play failed:", e));
-            } else if (gameStarted && !gameOver) {
-                // Прыжок во время игры
+            }
+            if (gameStarted && !gameOver) {
                 player.velocityY = player.jumpStrength; // Придаем импульс вверх
                 jumpSound.currentTime = 0; // Сброс звука, чтобы он мог проиграться снова быстро
                 jumpSound.play().catch(e => console.warn("Jump sound failed:", e));
             } else if (gameOver) {
-                // Если игра закончена, перезапускаем
+                // Если игра окончена, любой ввод перезапускает её
                 initGame();
             }
         }
@@ -537,30 +532,23 @@
             }
         });
 
-        // Обработчик касаний для canvas и всего экрана
+        // Добавляем обработчик на весь документ, чтобы точно поймать тап/клик для старта
+        // и для перезапуска игры после Game Over
         document.addEventListener('touchstart', (e) => {
-            // Игнорируем касания кнопки рестарта
-            if (e.target === restartButton || restartButton.contains(e.target)) {
-                return;
-            }
-            e.preventDefault();
+            e.preventDefault(); // Предотвратить прокрутку и зум
             handleInput();
-        });
+        }, { passive: false }); // `passive: false` для предотвращения `preventDefault()` на некоторых браузерах
 
-        // Обработчик клика мыши
+        // Обработчик для кликов мыши на ПК/немобильных устройствах
         document.addEventListener('click', (e) => {
-            // Игнорируем клики по кнопке рестарта
-            if (e.target === restartButton || restartButton.contains(e.target)) {
-                return;
+             // Проверяем, что клик не был на кнопке "ИГРАТЬ СНОВА"
+            if (e.target !== restartButton) {
+                handleInput();
             }
-            e.preventDefault();
-            handleInput();
         });
 
-        // Обработчик для кнопки рестарта
-        restartButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+
+        restartButton.addEventListener('click', () => {
             initGame();
         });
 
