@@ -109,19 +109,6 @@
     </div>
     <div id="current-score">Счет: 0</div>
 
-    <audio id="bgMusic" loop preload="auto" volume="0.3">
-        <source src="sounds/bg_music.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="jumpSound" preload="auto" volume="0.7">
-        <source src="sounds/jump.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="scoreSound" preload="auto" volume="0.7">
-        <source src="sounds/score.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="hitSound" preload="auto" volume="0.7">
-        <source src="sounds/hit.mp3" type="audio/mpeg">
-    </audio>
-
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -133,17 +120,11 @@
         const restartButton = document.getElementById('restart-button');
         const currentScoreDisplay = document.getElementById('current-score');
 
-        // Звуки
-        const bgMusic = document.getElementById('bgMusic');
-        const jumpSound = document.getElementById('jumpSound');
-        const scoreSound = document.getElementById('scoreSound');
-        const hitSound = document.getElementById('hitSound');
-
         // --- Переменные игры ---
         let gameStarted = false;
         let gameOver = false;
         let score = 0;
-        let highScore = localStorage.getItem('flappyCircleHighScore') || 0;
+        let highScore = parseInt(localStorage.getItem('flappyCircleHighScore')) || 0;
 
         // Базовые размеры (для масштабирования)
         const BASE_WIDTH = 400;
@@ -165,10 +146,10 @@
 
         // Параметры столбиков (базовые, будут масштабироваться)
         const pillarConfig = {
-            baseWidth: 70, // Вернул ширину столбиков к 70
-            baseGap: 160, // Сохранил увеличенный вертикальный просвет
+            baseWidth: 70, 
+            baseGap: 160, 
             baseSpeed: 3,
-            baseSpawnInterval: 2000 // Увеличил интервал появления столбиков (частота)
+            baseSpawnInterval: 2000 
         };
         let pillars = []; // Актуальные столбики
         let lastPillarSpawnTime = 0;
@@ -231,7 +212,6 @@
 
         window.addEventListener('resize', fitCanvasToScreen);
 
-
         // --- Инициализация и сброс игры ---
         function initGame() {
             gameStarted = false; // Сбрасываем флаг начала игры
@@ -271,10 +251,6 @@
             if (!window.gameAnimationFrame) {
                 window.gameAnimationFrame = requestAnimationFrame(gameLoop);
             }
-
-            // Останавливаем музыку, если она играет
-            bgMusic.pause();
-            bgMusic.currentTime = 0;
         }
 
         // --- Отрисовка ---
@@ -392,8 +368,7 @@
                         score++;
                         currentScoreDisplay.textContent = `Счет: ${score}`;
                         p.passed = true;
-                        scoreSound.currentTime = 0;
-                        scoreSound.play().catch(e => console.warn("Score sound failed:", e));
+                        console.log('Score sound would play here');
                     }
                 }
             });
@@ -419,7 +394,6 @@
                 lastPillarSpawnTime = currentTime; // Обновляем время появления последнего столба
             }
         }
-
 
         function updateClouds() {
             clouds.forEach(cloud => {
@@ -464,42 +438,39 @@
         function handleInput() {
             // Если игра не началась
             if (!gameStarted && !gameOver) {
-                gameStarted = true;
-                gameOverlay.classList.add('hidden'); // Скрыть стартовый оверлей
-                lastPillarSpawnTime = Date.now(); // Сбросить таймер появления столбиков
-                bgMusic.play().catch(e => console.warn("Background music play failed:", e));
+                startGame();
             }
             // Если игра началась и не окончена, выполняем прыжок
-            if (gameStarted && !gameOver) {
+            else if (gameStarted && !gameOver) {
                 player.velocityY = player.jumpStrength; // Придаем импульс вверх
-                jumpSound.currentTime = 0; // Сброс звука, чтобы он мог проиграться снова быстро
-                jumpSound.play().catch(e => console.warn("Jump sound failed:", e));
-            } else if (gameOver) {
-                // Если игра окончена, любой ввод перезапускает её в начальное состояние
-                initGame();
+                console.log('Jump sound would play here');
             }
+        }
+
+        function startGame() {
+            gameStarted = true;
+            gameOverlay.classList.add('hidden'); // Скрыть стартовый оверлей
+            lastPillarSpawnTime = Date.now(); // Сбросить таймер появления столбиков
+            console.log('Background music would play here');
         }
 
         function endGame() {
             gameOver = true;
             gameStarted = false; // Важно сбросить флаг gameStarted
-            hitSound.currentTime = 0;
-            hitSound.play().catch(e => console.warn("Hit sound failed:", e));
-            bgMusic.pause(); // Останавливаем музыку при конце игры
-            bgMusic.currentTime = 0;
+            console.log('Hit sound would play here');
 
             // Сохраняем рекорд
             if (score > highScore) {
                 highScore = score;
-                localStorage.setItem('flappyCircleHighScore', highScore);
+                localStorage.setItem('flappyCircleHighScore', highScore.toString());
             }
 
             // Показываем результаты и кнопку рестарта
             gameOverlay.classList.remove('hidden');
             startMessage.classList.add('hidden'); // Скрываем стартовое сообщение
             scoreDisplay.classList.remove('hidden');
-            finalScoreSpan.textContent = score;
-            highScoreSpan.textContent = highScore;
+            finalScoreSpan.textContent = score.toString();
+            highScoreSpan.textContent = highScore.toString();
             restartButton.classList.remove('hidden');
         }
 
@@ -530,34 +501,36 @@
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 e.preventDefault(); // Предотвратить прокрутку страницы пробелом
-                handleInput();
+                if (!gameOver) { // Только если игра не окончена
+                    handleInput();
+                }
             }
         });
 
-        // Добавляем обработчик на весь документ, чтобы точно поймать тап/клик для старта
-        // и для перезапуска игры после Game Over
+        // Обработчик для тачскрина
         document.addEventListener('touchstart', (e) => {
-            // Проверяем, что тап не был на кнопке "ИГРАТЬ СНОВА",
-            // чтобы избежать двойного вызова handleInput
-            if (e.target !== restartButton) {
+            if (e.target !== restartButton && !gameOver) {
                 e.preventDefault(); // Предотвратить прокрутку и зум
                 handleInput();
             }
-        }, { passive: false }); // `passive: false` для предотвращения `preventDefault()` на некоторых браузерах
+        }, { passive: false }); 
 
-        // Обработчик для кликов мыши на ПК/немобильных устройствах
+        // Обработчик для кликов мыши на ПК
         document.addEventListener('click', (e) => {
-             // Проверяем, что клик не был на кнопке "ИГРАТЬ СНОВА"
-            if (e.target !== restartButton) {
+            if (e.target !== restartButton && !gameOver) {
                 handleInput();
             }
         });
 
-
-        // Теперь кнопка перезапуска просто вызывает initGame(),
-        // которая полностью сбрасывает игру и готова к новому старту через handleInput
-        restartButton.addEventListener('click', () => {
+        // Обработчик кнопки рестарта - теперь СРАЗУ запускает игру
+        restartButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             initGame();
+            // Запускаем игру сразу после инициализации
+            setTimeout(() => {
+                startGame();
+            }, 100); // Небольшая задержка для корректной инициализации
         });
 
         // Инициализация игры при загрузке страницы
