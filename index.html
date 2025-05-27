@@ -165,10 +165,10 @@
 
         // Параметры столбиков (базовые, будут масштабироваться)
         const pillarConfig = {
-            baseWidth: 60, // Немного уменьшил ширину столбов
-            baseGap: 160, // Ещё немного увеличил просвет для комфорта
+            baseWidth: 70, // Вернул ширину столбиков к 70
+            baseGap: 160, // Сохранил увеличенный вертикальный просвет
             baseSpeed: 3,
-            baseSpawnInterval: 1700 // Интервал появления
+            baseSpawnInterval: 2000 // Увеличил интервал появления столбиков (частота)
         };
         let pillars = []; // Актуальные столбики
         let lastPillarSpawnTime = 0;
@@ -234,8 +234,8 @@
 
         // --- Инициализация и сброс игры ---
         function initGame() {
-            gameStarted = false;
-            gameOver = false;
+            gameStarted = false; // Сбрасываем флаг начала игры
+            gameOver = false; // Сбрасываем флаг окончания игры
             score = 0;
             player.y = player.baseY * currentScale; // Начальная позиция игрока
             player.velocityY = 0;
@@ -403,7 +403,8 @@
             const currentTime = Date.now();
             // Генерируем новый столб, если прошло достаточно времени с момента появления последнего
             // или если столбов еще нет (для первого)
-            if (gameStarted && (pillars.length === 0 || canvas.width - pillars[pillars.length - 1].x > pillarConfig.baseWidth * 2.5)) { // Условие для генерации нового столба
+            // Использовать lastPillarSpawnTime для контроля частоты
+            if (gameStarted && (pillars.length === 0 || (currentTime - lastPillarSpawnTime > pillarConfig.baseSpawnInterval))) {
                 const minHeight = 100 * currentScale;
                 const maxHeight = canvas.height - (grassConfig.baseHeight * currentScale) - pillarConfig.gap - 100 * currentScale;
                 const height = Math.random() * (maxHeight - minHeight) + minHeight;
@@ -461,26 +462,27 @@
 
         // --- Управление игрой ---
         function handleInput() {
+            // Если игра не началась
             if (!gameStarted && !gameOver) {
-                // Только один раз, при первом взаимодействии, запускаем игру
                 gameStarted = true;
                 gameOverlay.classList.add('hidden'); // Скрыть стартовый оверлей
                 lastPillarSpawnTime = Date.now(); // Сбросить таймер появления столбиков
                 bgMusic.play().catch(e => console.warn("Background music play failed:", e));
             }
+            // Если игра началась и не окончена, выполняем прыжок
             if (gameStarted && !gameOver) {
                 player.velocityY = player.jumpStrength; // Придаем импульс вверх
                 jumpSound.currentTime = 0; // Сброс звука, чтобы он мог проиграться снова быстро
                 jumpSound.play().catch(e => console.warn("Jump sound failed:", e));
             } else if (gameOver) {
-                // Если игра окончена, любой ввод перезапускает её
+                // Если игра окончена, любой ввод перезапускает её в начальное состояние
                 initGame();
             }
         }
 
         function endGame() {
             gameOver = true;
-            gameStarted = false;
+            gameStarted = false; // Важно сбросить флаг gameStarted
             hitSound.currentTime = 0;
             hitSound.play().catch(e => console.warn("Hit sound failed:", e));
             bgMusic.pause(); // Останавливаем музыку при конце игры
@@ -535,8 +537,12 @@
         // Добавляем обработчик на весь документ, чтобы точно поймать тап/клик для старта
         // и для перезапуска игры после Game Over
         document.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // Предотвратить прокрутку и зум
-            handleInput();
+            // Проверяем, что тап не был на кнопке "ИГРАТЬ СНОВА",
+            // чтобы избежать двойного вызова handleInput
+            if (e.target !== restartButton) {
+                e.preventDefault(); // Предотвратить прокрутку и зум
+                handleInput();
+            }
         }, { passive: false }); // `passive: false` для предотвращения `preventDefault()` на некоторых браузерах
 
         // Обработчик для кликов мыши на ПК/немобильных устройствах
@@ -548,6 +554,8 @@
         });
 
 
+        // Теперь кнопка перезапуска просто вызывает initGame(),
+        // которая полностью сбрасывает игру и готова к новому старту через handleInput
         restartButton.addEventListener('click', () => {
             initGame();
         });
