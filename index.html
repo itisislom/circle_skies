@@ -151,6 +151,9 @@
             baseSpeed: 3,
             baseSpawnInterval: 2000 
         };
+
+        // Определяем, мобильное ли устройство
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         let pillars = []; // Актуальные столбики
         let lastPillarSpawnTime = 0;
 
@@ -190,7 +193,8 @@
 
             // Масштабируем параметры столбиков
             pillarConfig.width = pillarConfig.baseWidth * currentScale;
-            pillarConfig.gap = pillarConfig.baseGap * currentScale;
+            // Увеличиваем зазор для мобильных устройств
+            pillarConfig.gap = isMobile ? (pillarConfig.baseGap + 40) * currentScale : pillarConfig.baseGap * currentScale;
             pillarConfig.speed = pillarConfig.baseSpeed * currentScale;
 
             // Масштабируем параметры облаков
@@ -442,7 +446,12 @@
             }
             // Если игра началась и не окончена, выполняем прыжок
             else if (gameStarted && !gameOver) {
-                player.velocityY = player.jumpStrength; // Придаем импульс вверх
+                // Более мягкий прыжок для мобильных устройств
+                if (isMobile) {
+                    player.velocityY = player.jumpStrength * 0.8; // Уменьшаем силу прыжка на 20%
+                } else {
+                    player.velocityY = player.jumpStrength; // Обычная сила для ПК
+                }
                 console.log('Jump sound would play here');
             }
         }
